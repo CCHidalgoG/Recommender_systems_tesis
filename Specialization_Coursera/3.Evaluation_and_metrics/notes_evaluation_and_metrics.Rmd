@@ -1,0 +1,390 @@
+---
+title: "Evaluation_and_metrics_notes"
+author: "Cristian Hidalgo"
+date: "23/5/2022"
+output: html_document
+---
+
+# Decision metrics
+
+This content is based in the course number 3 (https://www.coursera.org/learn/recommender-metrics) as a part of the Specialization program in recommender systems.
+
+## Week one
+
+### Introduction to evaluation and metrics
+
+* __Metrics:__
+  - Accuracy, decision support, rank, others
+* __Evaluation without users:__
+  - Evaluating offline data
+  - Framework for hidden-data evaluation
+* __Evaluation with users:__
+  - Lab and field experiments (A/B Trials)
+  - User surveys, log analysis
+
+ As we put all of that together, we'll get a holistic concept of how we can evaluate our recommender system and use that evaluation to feed forward and to tune the system and redesigning it to work better.
+ 
+### The goals of evaluation
+
+* To understand ways of evaluating the "goodness" of a recommendation, and of a recommender algorithm or system
+  - Acuracy metrics
+  - Error metrics
+  - Decision-support metrics
+  - User and usage-centered metrics
+* To understand how predictions and recommendations (including top-n) are evaluated
+* To understand retrospective and live approaches to evaluation
+
+#### A historical look
+
+* The early days
+  - Accuracy and error measures
+    * MAE, RMSE, MSE
+  - Decision-support metrics:
+    * ROC AUC, Brese score, later precision/recall
+  - Error meets decision-support/user experience:
+    * "Reversals"
+  - User-centered metrics
+    * Coverage, user retention, recommendation uptake, satisfaction.
+
+#### Theme 1: Prediction vs. Top-N
+
+* Key distinction:
+  - Prediction is mostly about accuracy, possibly decision support; focused locally
+  - Top-N is mostly about ranking, decision support; focused comparatively
+
+#### Theme 2: More than just metrics
+
+* Even simple evaluation are hard
+  - Easy to compute error of a single prediction
+  - Average across predictor or across user?
+  - How to handle lack of coverage?
+* Comparative evaluation is even harder...
+  - Proper baseline
+  - Different coverage, etc.
+
+#### Theme 3: Unary data
+
+* Many of the metrics we present are designed specifically for evaluation data with a multipoint rating scale (e.g 1-5)
+* Some measures don't work well at all for unary data (e.g., purchase data)
+* Special coverage of unary evaluation
+
+#### Theme 4: Dead vs. Live recs?
+
+* Retrospective (dead data) evaluation looks at how recommender would have predicted or recommender for items already consumed/rated.
+* Prospective (live experiments) evaluation looks at how recommendation are actually received.
+* Fundamental differences...
+
+_Which of the following examples reflect a potential mismatch between recommender systems goals and metrics?_ Assessing the success of a movie recommender that shows five "recommended" movies by measuring the overall difference between predictions and ratings of those movies (i.e., a measure of error). 
+
+### Hidden data evaluation
+
+The basic idea es we use existing data collected from users and use these data to **simulate behavior** and after test wheter recommender can **predict** behavior.
+
+#### Prerequisites
+
+1. Data
+
+Some data set that is relevant to recommendation
+
+* Ratings of movies
+* Plays (or play counts) of songs
+* Clicks of new articles
+
+The dataset will be split in train and test, in train we developt a recommender system and produce recommendations and predictions to test set and compare/measure thus output. This is a metric.
+
+**What do we measure?**
+
+* How close is prediction to rating?
+  * Aggregate
+* Are purchased items in recommendation list?
+* Where are purchased items ranked in recommendation list?
+
+**Cross-validation**
+
+What if train-test split randomly slects mostly 'easy' or 'hard' users?
+
+Solution: multiple splits
+
+* Partition data into _k_ partitions
+* For each partition, train on others and test with it
+
+**Conclusion**
+
+* We can use data sets to estimate recommender performance
+* Hide some data, ask recommender to predict it
+* Compare to collected data
+
+_Why is it important to hide the test data from the recommender training process?_ To keep the recommender from 'cheating' by memorizing users' behavior, and thereby achieving a better result than it could in actual use.
+
+
+### Prediction accuracy metrics
+
+#### Mean absolute error (MAE)
+
+* What is error
+  - Divergence of prediction from actual opinion (rating)
+  -P-R
+* Absolute error removes direction
+  - |P-R|
+  - Why? Because two wrongs don't make a right!
+* MAE = Average (|P-R|)
+  - $\frac{\sum_{\text{ratings}}|P-R|}{\# \text{ratings}}$
+  
+#### Mean square error (MSE)
+
+* Why square error?
+  - Removes sign - avoids need for absolute value
+  - Penalizes large error more than small
+* $\frac{\sum_{\text{ratings}}(P-R)^2}{\# \text{ratings}}$
+* One disadvantage -square error is not on an intuitive scale...
+
+#### Root Mean Squared Error (RMSE)
+
+* $\sqrt{\frac{\sum_{\text{ratings}}(P-R)^2}{\# \text{ratings}}}$
+
+_Which of the following are benefits of Root Mean Squared Error (RMSE) over Mean Absolute Error (MAE) and Mean Squared Error (MSE)?_
+
+  - RMSE gives significantly greater weight to larger errors, unlike MAE, which often reflects the fact that big errors are much worse for user experience. 
+  - RMSE is easier to interpret than MSE because the scale of errors is matched more closely to the scale of ratings.
+  
+#### Hold a moment
+
+* We glossed over the summation
+  - Usual model - average over all ratings
+  - Alternative model (average over user averages)
+* What's the difference
+  - What if one user has 3000 ratings and another 10?
+* Advice (consider looking at both) understand what you're comparing to
+
+It's a good idea to plot user errors ratings and see how is the distribution.
+
+#### Comparing different algorithms
+
+* What to do when computing MAE in different cases:
+   - Remember, must be same data ser/scale
+   - If coverage is different (different set of user/item pair for which prediction are available, two choices):
+    - Check against common subset
+    - Supplement algorithm with default for full coverage
+    
+#### Reflections...
+
+* In general, all the error metrics move together (good replacements for each other)
+* Squared may mtter for large scales with some algorithms that have occasional huge errors, but other measures may catch that better
+* Benefit (lots of published MAE, RMSE data for public datasets)
+* Drawback (error can be dominanted by irrelevant parts of the item space)
+
+### Decision support metrics
+
+#### What is "Decision support"
+
+* Measure how well a recommender helps users _make good decisions_
+  - Good decisions are about choosing "good" items and avoiding "bad" ones
+* For predictions: 4* vs. 2.5* worse than 2.5* vs 1*
+* For recommendations, top of list is what matter most.
+
+#### Errors and reversals
+
+* Waht is an "error"?
+  - Ad hoc measure of wrong predictions
+  - E.g., determine that 3.5-5* = good, 1-2.5 = bad
+    * Eror is when a good movie (for a user) gets a bad prediction (or vice versa)
+  - Can also be used for top-n (every time a bad movie appears in the top-n, it is an error).
+  - Usually reported as total number (compared between algorithms), average error rate per user, etc.
+  - Not widely used in research
+
+* Reversals are large mistakes, e.g., off by 3 points on a 5-point scale
+  - Intuition is that these are likely really bad (lead to loss of confidence)
+  - Again, reported as total or coverage rate
+
+#### Precision and recall
+
+* Information retrieval metrics
+  - Precision is the percentage of selected items that are "relevant"
+    * $P = \frac{N_{rs}}{N_s}$
+  - Recall is the percentage of relevant items that are selected
+    * $R = \frac{N_{rs}}{N_r}$
+    
+#### Precision and recall(2)
+
+* Different goals
+  - Precision is about returning mostly useful stuff
+    * Not wasting user time
+    * Assumption is that there is more useful stuff than you want
+  - Recall is about not missing useful stuff
+    * Not making a bad oversight
+    * Assumption is that you have tme to filter through results to find key result you need
+  - When these two goals are in balance, F-metrics
+    * $F1 = \frac{2PR}{P+R}$
+
+#### Precision and recall(3)
+
+* Problem #1 with precision/recall
+  - Need ground truth for all items
+    * But if we had ground truth, why bother with a recommender
+  - Ways this is addressed
+    * Fake precision/recall by limiting rated items
+      - Common (results in interesting biases)
+    * Human-rating experiments that compute precision/recall over some random subset
+    
+* Problem #2 with precision/recall
+  - Covers entire data set (not targeted on top recommended items)
+    * precision/recall onherently about "full query"
+  - Addressed through P@n, R@n
+    * Precision@n is the percentage of the top-n items that are "good": $P@n =  \frac{N_{r@n}}{n}$
+    * Some have proposed computing this as an average over a set of experiments with 1 "hit" and a large number of presumed misses
+    * Recall@n is effectively the same
+    
+_What's the basic idea of a decision-support metric?_ 
+To better assess how well the recommender leads users to make the right decision (on whether to consume or buy an item) rather than the wrong decision.
+
+### Receiver Operating Characteristics
+
+* The ROC curve is a plot of the performance of a classifier or filter at different thresholds: It plots true-positives against falses positive:
+  - http://en.wikipedia.org/wiki/Receiver_operating_characteristic
+* In recommender systems, the curve reflects trade-off as you vary the prediction cut-off for recommending (vs not)
+* Area under the curve is often used as a measure of recommender effectivenes
+
+### Reflections
+
+* Once again, all of these metrics tend to correlate highly with each other (good replacements for each other)
+* Precision@n and overall precision are perhaps the most widely used (and easily understood)
+* ROC provides insight if the goal is to tune the recommender's use as a filter, or identify "sweet spots" in its performance
+* None of these metrics overcome the problem of being based on rated items only (and the inherent variation that comes from this limitation)
+
+### Rank-aware top-N metrics
+
+#### Intro
+
+* how accurate are predictions?
+* how good is recommender at finding things?
+
+Now:
+
+* where does the recommender list the items it suggests?
+* alternatively: how good is the recommender at modeling relative preference?
+
+#### Requirements
+
+Two families of metrics:
+
+**Binary relevance** metrics need to know if an item is 'good' or not (like decision support)
+
+**Utility** metrics need a measurement of absolute or relative 'goodness' of items (e.g. ratings)
+
+#### Mean reciprocal rank (MRR)
+
+Very simple rank metric:
+
+  _where is te first relevant item?_
+  
+Needs binary relevance judgements.
+
+For each user _u_:
+* Generate list of recommendations
+* Find rank $k_u$ if its first relevant recommendation (the first rec has rank 1)
+* Compute reciprocal rank $\frac{1}{k_u}$
+
+Overall algorithm performance is mean recip. rank:
+
+$$\text{MRR}(O,U) = \frac{1}{|U|} \sum_{u \in U}\frac{1}{k_u}$$
+
+**Benefits**
+* Very simple
+* Clearly models _targeted_ search or recommendation tasks (user wants a thing)
+
+**Drawbacks**
+* Less clearly appropiate for general recommendation scenarios
+
+#### Average precision
+
+Precision: what fraction of _n_ recs are 'good'?
+
+* Requires fixed _n_
+* Treats all errors equally
+  - But accuracy of first few items is more important
+
+* Take mean of all users' average precision (AP) values
+
+$$\text{MAP}(O,U) = \frac{1}{|U|} \sum_{u \in U}\text{AP}(O(u))$$
+
+_What kinds of data can be used for measuring MRR or MAP?_
+* Thumb up/down data indicating that a user likes or dislikes an item.
+* Click data where we know items the user clicked and ones they saw but did not click.
+* Ratings
+
+#### Rank correlation
+
+If we can _rank_ items for a user
+* Absolute judgements (ratings)
+* Relative judgements (e.g. pairwise preferences)
+
+Then we can compare system order $O$ to the user's preference order $O_u$
+
+#### Spearman correlation
+
+Pearson correlation over item ranks
+* Assign item rank values
+* Ties get average of ranks (e.g. 3,4,5,6 becomes 4.5)
+
+$$\frac{\sum_i (k_o(i)- \bar{k_o})(k_{o_u}(i)- \bar{k_{o_u}})}{\sqrt{(k_o(i)- \bar{k_o})^2}\sqrt{(k_{o_u}(i)- \bar{k_{o_u}})^2}}$$
+
+**Problems with Spearman**
+
+* Punishes all misplacement equally
+* However: we don't care as much low-down
+  * swapping 1 and 3: bad
+  * swapping 11 and 12: not nearly so bad
+* Goal: weight things at the top of the list more heavily
+
+### Discounted cumulative gain
+
+* Measure _utility_ of item at each position n the list
+  * Rating $r_{ui}$
+  * For unary data, 1/0 ratings
+* Discount by position, so things at front are more important
+* Normalize by total achievable utility
+* Result is normalized discounted cumulative gain (nDCG)
+  
+$$\text{DCG}(O,u) = \sum_i \frac{r_{ui}}{\text{disc}(i)}$$
+
+where $\text{disc}(i) =  1 \text{ if } i \leq 2$ and $\text{disc}(i) =  \log_2(i) \text{ if } i > 2$
+
+Other discounts possible 
+
+#### Discounting
+
+* Log discounting is very common
+  * For base b (usually 2), no discount for items $1, \dots, b$
+* Half*life discount has good theoretical basis
+
+$$2^{- \frac{k(i)-1}{\alpha-1}}$$
+
+  * Exponential decay
+  * Users exponentially less likely to click each item
+  * Half-life $\alpha$ is rank with 50\% probably of click
+  * Measures _expected utility_
+  
+#### Normalized DCG (nDCG)
+
+* Different users have different ratings, different possible gains
+* Normalize gain by _best possible gain_
+
+$$\text{nDCG}(O,u) = \frac{\text{DCG}(O,u)}{\text{DCG}(O_u,u)}$$
+* 1 is perfect
+
+#### Fraction of concordant pairs
+
+* What fraction of pairs are in the correct relative order?
+* Tests pairwise accuracy
+
+#### Rank effectiveness
+If we have user order $O_u$, we can measure _rank effectiveness_
+
+* Ask recommender to order user's rated items, not pick them from the haystack
+* Compare recommender order to user order
+* Avoids certain problems with missing data
+
+#### Conclusion
+
+* Several metrics to measure recommender's ability to order items
+* nDCG and MAP increasingly common; MRR also used, particularly in information retrieval
